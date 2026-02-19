@@ -9,20 +9,23 @@ export function useQuiz() {
 
   const generate = async (text: string, aiKey?: string) => {
     setIsLoading(true)
-    const data = await generateQuizQuestions(text, aiKey)
-    setQuestions(data)
-    setAnswers({})
-    setIsLoading(false)
+    try {
+      const data = await generateQuizQuestions(text, aiKey)
+      setQuestions(data)
+      setAnswers({})
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const score = useMemo(
-    () =>
-      questions.reduce((sum, question) => {
-        if (question.type === 'short') return sum
-        return answers[question.id]?.toLowerCase() === question.answer.toLowerCase() ? sum + 1 : sum
-      }, 0),
-    [answers, questions],
-  )
+  const score = useMemo(() => {
+    return questions.reduce((sum, question) => {
+      if (question.type === 'short') return sum
+      const given = answers[question.id]?.toLowerCase()
+      const correct = question.answer.toLowerCase()
+      return given === correct ? sum + 1 : sum
+    }, 0)
+  }, [answers, questions])
 
   return { questions, answers, setAnswers, isLoading, generate, score }
 }

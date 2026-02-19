@@ -1,13 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+
 import { Sidebar } from '@/components/layout/Sidebar'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import { InstallPWA } from '@/components/common/InstallPWA'
+
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useHotkeys } from '@/hooks/useHotkeys'
+
+import { migrateStorage } from '@/lib/storage'
+import { logEvent } from '@/lib/telemetry'
+
 import type { Note, Settings, Task } from '@/types/models'
+
 import { ChatPage } from '@/pages/ChatPage'
 import { PlannerPage } from '@/pages/PlannerPage'
 import { NotesPage } from '@/pages/NotesPage'
@@ -17,7 +24,6 @@ import { NotFound } from '@/pages/NotFound'
 import { FlashcardsPage } from '@/sections/flashcards/FlashcardsPage'
 import { QuizPage } from '@/sections/quiz/QuizPage'
 import { SettingsPage } from '@/sections/settings/SettingsPage'
-import { retrieveInternalSources } from '@/lib/ai/retrieval'
 
 const defaultSettings: Settings = {
   theme: 'light',
@@ -30,31 +36,91 @@ const defaultSettings: Settings = {
 
 function AppShell() {
   const location = useLocation()
+
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+
   const [notes, setNotes] = useLocalStorage<Note[]>('study-assistant:notes', [])
   const [tasks, setTasks] = useLocalStorage<Task[]>('study-assistant:tasks', [])
   const [settings, setSettings] = useLocalStorage<Settings>('study-assistant:settings', defaultSettings)
-  const { inAppMessages, requestPermission, notify } = useNotifications()
 
+  const { notify, requestPermission } = useNotifications()
+
+  // Hotkeys (centralized)
   useHotkeys({
     onCommandPalette: () => setPaletteOpen((prev) => !prev),
     onShortcutHelp: () => setShowShortcuts((prev) => !prev),
-    onSlashFocus: location.pathname === '/' ? () => document.getElementById('chat-input')?.focus() : undefined,
+    onSlashFocus:
+      location.pathname === '/'
+        ? () => {
+            document.getElementById('chat-input')?.focus()
+          }
+        : undefined,
   })
+
+  // App init: migrations + theme sync
+  useEffect(() => {
+    migrateStorage()
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', settings.theme === 'dark')
+  }, [settings.theme])
+
+  // Export / Import helpers (stable + no binary)
+  const exportData = () => {
+    const payload = { notes, tasks, settings }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'study-assistant-export.json'
+    a.click()
+    URL.revokeObjectURL(url)
+    logEvent('export_data')
+    notify('Export', 'Data exported successfully.')
+  }
+
+  const importData = async (file: File) => {
+    try {
+      const txt = await file.text()
+      const parsed = JSON.parse(txt) as { notes?: Note[]; tasks?: Task[]; settings?: Settings }
+
+      if (parsed.notes) setNotes(parsed.notes)
+      if (parsed.tasks) setTasks(parsed.tasks)
+      if (parsed.settings) setSettings(parsed.settings)
+
+      logEvent('import_data')
+      notify('Import', 'Data imported successfully.')
+    } catch {
+      notify('Import failed', 'Invalid import file.')
+    }
+  }
+
+  const resetApp = () => {
+    // brutal but effective 😈
+    localStorage.clear()
+    window.location.reload()
+  }
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
+
       <main className="flex-1 space-y-4 p-4">
         <div className="flex items-center justify-between">
           <InstallPWA />
-          <span className="text-xs text-muted-foreground">Press Cmd/Ctrl+K for command palette</span>
+          <span className="text-xs text-muted-foreground">Cmd/Ctrl+K palette • Cmd/Ctrl+/ help • / focus chat</span>
         </div>
 
         {showShortcuts ? (
           <div className="rounded-lg border p-3 text-sm">
-            Shortcuts: Cmd/Ctrl+K (palette), Cmd/Ctrl+/ (help), / (chat focus)
+            <div className="font-medium">Keyboard Shortcuts</div>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Cmd/Ctrl + K → Command Palette</li>
+              <li>Cmd/Ctrl + / → Toggle Shortcuts Help</li>
+              <li>/ → Focus chat input (Chat page only)</li>
+            </ul>
           </div>
         ) : null}
 
@@ -71,18 +137,13 @@ function AppShell() {
               <SettingsPage
                 settings={settings}
                 setSettings={setSettings}
-                notes={notes}
-                tasks={tasks}
-                inAppMessages={inAppMessages}
+                onExport={exportData}
+                onImport={importData}
+                onReset={resetApp}
                 onRequestNotifications={() => {
                   void requestPermission().then((result) => {
                     if (result === 'denied') notify('Notifications', 'Permission denied. Using in-app fallback.')
                   })
-                }}
-                onImportData={(payload) => {
-                  if (payload.notes) setNotes(payload.notes)
-                  if (payload.tasks) setTasks(payload.tasks)
-                  if (payload.settings) setSettings(payload.settings)
                 }}
               />
             }
@@ -96,11 +157,9 @@ function AppShell() {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onAction={(action) => {
+          logEvent('command_action', action)
           if (action === 'Start Pomodoro') notify('Pomodoro', 'Focus session started.')
-          if (action === 'New Chat Thread' && settings.citationsMode) {
-            const refs = retrieveInternalSources(notes, 'study')
-            if (refs.length === 0) notify('Citations', 'No internal sources found.')
-          }
+          if (action === 'Export Data') exportData()
         }}
       />
     </div>

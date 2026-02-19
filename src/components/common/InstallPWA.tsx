@@ -9,16 +9,24 @@ export function InstallPWA() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
-    const listener = (event: Event) => {
+    const handler = (event: Event) => {
       event.preventDefault()
       setInstallEvent(event as BeforeInstallPromptEvent)
     }
 
-    window.addEventListener('beforeinstallprompt', listener)
-    return () => window.removeEventListener('beforeinstallprompt', listener)
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
   if (!installEvent) return null
 
-  return <Button onClick={() => void installEvent.prompt()}>Install App</Button>
+  return (
+    <Button
+      onClick={() => {
+        void installEvent.prompt()
+      }}
+    >
+      Install App
+    </Button>
+  )
 }

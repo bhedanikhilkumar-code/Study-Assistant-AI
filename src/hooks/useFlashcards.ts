@@ -13,7 +13,10 @@ export function useFlashcards() {
   const dueCards = useMemo(() => cards.filter((card) => isCardDue(card)), [cards])
 
   const createDeck = (name: string, subject: string) => {
-    setDecks((prev) => [...prev, { id: crypto.randomUUID(), name, subject, createdAt: new Date().toISOString() }])
+    setDecks((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), name, subject, createdAt: new Date().toISOString() },
+    ])
   }
 
   const createCard = (deckId: string, front: string, back: string) => {
