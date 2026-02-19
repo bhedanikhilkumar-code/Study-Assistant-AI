@@ -1,18 +1,43 @@
 import { useMemo } from 'react'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
-import { applySM2, isDue } from '@/lib/spacedRepetition/sm2'
-import type { Card, Deck } from '@/types/flashcards'
+import { isCardDue, reviewWithSm2 } from '@/lib/spacedRepetition/sm2'
+import type { Flashcard, FlashcardDeck } from '@/types/flashcards'
+
+const DECKS_KEY = 'study-assistant:flashcard-decks'
+const CARDS_KEY = 'study-assistant:flashcard-cards'
 
 export function useFlashcards() {
-  const [decks, setDecks] = useLocalStorage<Deck[]>('study-assistant:decks', [])
-  const [cards, setCards] = useLocalStorage<Card[]>('study-assistant:cards', [])
+  const [decks, setDecks] = useLocalStorage<FlashcardDeck[]>(DECKS_KEY, [])
+  const [cards, setCards] = useLocalStorage<Flashcard[]>(CARDS_KEY, [])
 
-  const dueCards = useMemo(() => cards.filter((card) => isDue(card)), [cards])
+  const dueCards = useMemo(() => cards.filter((card) => isCardDue(card)), [cards])
 
-  const addDeck = (name: string, subject: string) => setDecks((d) => [...d, { id: crypto.randomUUID(), name, subject, createdAt: new Date().toISOString() }])
-  const addCard = (deckId: string, front: string, back: string) =>
-    setCards((c) => [...c, { id: crypto.randomUUID(), deckId, front, back, easeFactor: 2.5, interval: 0, repetitions: 0, nextReviewDate: new Date().toISOString() }])
-  const reviewCard = (cardId: string, quality: number) => setCards((list) => list.map((card) => (card.id === cardId ? applySM2(card, quality) : card)))
+  const createDeck = (name: string, subject: string) => {
+    setDecks((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), name, subject, createdAt: new Date().toISOString() },
+    ])
+  }
 
-  return { decks, cards, dueCards, addDeck, addCard, reviewCard }
+  const createCard = (deckId: string, front: string, back: string) => {
+    setCards((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        deckId,
+        front,
+        back,
+        easeFactor: 2.5,
+        interval: 0,
+        repetitions: 0,
+        nextReviewDate: new Date().toISOString(),
+      },
+    ])
+  }
+
+  const reviewCard = (cardId: string, quality: number) => {
+    setCards((prev) => prev.map((card) => (card.id === cardId ? reviewWithSm2(card, quality) : card)))
+  }
+
+  return { decks, cards, dueCards, createDeck, createCard, reviewCard }
 }

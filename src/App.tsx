@@ -1,69 +1,129 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+
 import { Sidebar } from '@/components/layout/Sidebar'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import { InstallPWA } from '@/components/common/InstallPWA'
+
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useHotkeys } from '@/hooks/useHotkeys'
+
 import { migrateStorage } from '@/lib/storage'
 import { logEvent } from '@/lib/telemetry'
+
 import type { Note, Settings, Task } from '@/types/models'
+
+import { ChatPage } from '@/pages/ChatPage'
+import { PlannerPage } from '@/pages/PlannerPage'
+import { NotesPage } from '@/pages/NotesPage'
 import { AnalyticsPage } from '@/pages/AnalyticsPage'
 import { AdminPage } from '@/pages/AdminPage'
-import { ChatPage } from '@/pages/ChatPage'
-import { FlashcardsPage } from '@/pages/FlashcardsPage'
-import { NotesPage } from '@/pages/NotesPage'
-import { PlannerPage } from '@/pages/PlannerPage'
-import { QuizPage } from '@/pages/QuizPage'
-import { SettingsPage } from '@/pages/SettingsPage'
+import { NotFound } from '@/pages/NotFound'
+import { FlashcardsPage } from '@/sections/flashcards/FlashcardsPage'
+import { QuizPage } from '@/sections/quiz/QuizPage'
+import { SettingsPage } from '@/sections/settings/SettingsPage'
 
-const defaultSettings: Settings = { theme: 'light', aiProvider: 'openai-compatible', aiKey: '', aiModel: 'gpt-4o-mini', aiBaseUrl: '', citationsMode: true }
+const defaultSettings: Settings = {
+  theme: 'light',
+  aiProvider: 'openai-compatible',
+  aiKey: '',
+  aiModel: 'gpt-4o-mini',
+  aiBaseUrl: '',
+  citationsMode: true,
+}
 
 function AppShell() {
   const location = useLocation()
+
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+
   const [notes, setNotes] = useLocalStorage<Note[]>('study-assistant:notes', [])
   const [tasks, setTasks] = useLocalStorage<Task[]>('study-assistant:tasks', [])
   const [settings, setSettings] = useLocalStorage<Settings>('study-assistant:settings', defaultSettings)
-  const { reminders, addReminder, notify, requestPermission } = useNotifications()
 
+  const { notify, requestPermission } = useNotifications()
+
+  // Hotkeys (centralized)
+  useHotkeys({
+    onCommandPalette: () => setPaletteOpen((prev) => !prev),
+    onShortcutHelp: () => setShowShortcuts((prev) => !prev),
+    onSlashFocus:
+      location.pathname === '/'
+        ? () => {
+            document.getElementById('chat-input')?.focus()
+          }
+        : undefined,
+  })
+
+  // App init: migrations + theme sync
   useEffect(() => {
     migrateStorage()
+  }, [])
+
+  useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark')
   }, [settings.theme])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();setPaletteOpen((v) => !v)
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
-        e.preventDefault();setShowShortcuts((v) => !v)
-      }
-      if (e.key === '/' && location.pathname === '/') {
-        e.preventDefault();document.getElementById('chat-input')?.focus()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [location.pathname])
-
+  // Export / Import helpers (stable + no binary)
   const exportData = () => {
-    const blob = new Blob([JSON.stringify({ notes, tasks, settings, reminders })], { type: 'application/json' })
+    const payload = { notes, tasks, settings }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a');a.href = url;a.download = 'study-assistant-export.json';a.click()
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'study-assistant-export.json'
+    a.click()
     URL.revokeObjectURL(url)
     logEvent('export_data')
+    notify('Export', 'Data exported successfully.')
+  }
+
+  const importData = async (file: File) => {
+    try {
+      const txt = await file.text()
+      const parsed = JSON.parse(txt) as { notes?: Note[]; tasks?: Task[]; settings?: Settings }
+
+      if (parsed.notes) setNotes(parsed.notes)
+      if (parsed.tasks) setTasks(parsed.tasks)
+      if (parsed.settings) setSettings(parsed.settings)
+
+      logEvent('import_data')
+      notify('Import', 'Data imported successfully.')
+    } catch {
+      notify('Import failed', 'Invalid import file.')
+    }
+  }
+
+  const resetApp = () => {
+    // brutal but effective 😈
+    localStorage.clear()
+    window.location.reload()
   }
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-4 space-y-3">
-        <div className="flex items-center justify-between"><InstallPWA /><span className="text-xs text-muted-foreground">Reminders: {reminders.length}</span></div>
-        {showShortcuts ? <div className="rounded border p-2 text-sm">Shortcuts: Cmd/Ctrl+K palette, Cmd/Ctrl+/ help, / focus chat input</div> : null}
+
+      <main className="flex-1 space-y-4 p-4">
+        <div className="flex items-center justify-between">
+          <InstallPWA />
+          <span className="text-xs text-muted-foreground">Cmd/Ctrl+K palette • Cmd/Ctrl+/ help • / focus chat</span>
+        </div>
+
+        {showShortcuts ? (
+          <div className="rounded-lg border p-3 text-sm">
+            <div className="font-medium">Keyboard Shortcuts</div>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Cmd/Ctrl + K → Command Palette</li>
+              <li>Cmd/Ctrl + / → Toggle Shortcuts Help</li>
+              <li>/ → Focus chat input (Chat page only)</li>
+            </ul>
+          </div>
+        ) : null}
+
         <Routes>
           <Route path="/" element={<ChatPage notes={notes} citationsMode={settings.citationsMode} />} />
           <Route path="/planner" element={<PlannerPage tasks={tasks} setTasks={setTasks} />} />
@@ -71,20 +131,35 @@ function AppShell() {
           <Route path="/flashcards" element={<FlashcardsPage />} />
           <Route path="/quiz" element={<QuizPage aiKey={settings.aiKey} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/settings" element={<SettingsPage settings={settings} setSettings={setSettings} onExport={exportData} onImport={(file) => file.text().then((txt) => {
-            try { const parsed = JSON.parse(txt) as { notes?: Note[]; tasks?: Task[]; settings?: Settings }; if (parsed.notes) setNotes(parsed.notes); if (parsed.tasks) setTasks(parsed.tasks); if (parsed.settings) setSettings(parsed.settings) } catch { notify('Import failed', 'Invalid data format', () => alert('Invalid import file')) }
-          })} onReset={() => { localStorage.clear(); window.location.reload() }} onRequestNotifications={() => { void requestPermission() }} />} />
+          <Route
+            path="/settings"
+            element={
+              <SettingsPage
+                settings={settings}
+                setSettings={setSettings}
+                onExport={exportData}
+                onImport={importData}
+                onReset={resetApp}
+                onRequestNotifications={() => {
+                  void requestPermission().then((result) => {
+                    if (result === 'denied') notify('Notifications', 'Permission denied. Using in-app fallback.')
+                  })
+                }}
+              />
+            }
+          />
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="*" element={<div className="rounded border p-4">Route not found.</div>} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
+
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onAction={(action) => {
           logEvent('command_action', action)
-          if (action === 'New Task') addReminder('Task reminder', new Date().toISOString())
-          if (action === 'Start Pomodoro') notify('Pomodoro started', 'Focus session has begun.', () => alert('Pomodoro started'))
+          if (action === 'Start Pomodoro') notify('Pomodoro', 'Focus session started.')
+          if (action === 'Export Data') exportData()
         }}
       />
     </div>

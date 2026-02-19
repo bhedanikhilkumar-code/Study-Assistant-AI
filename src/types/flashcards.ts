@@ -1,5 +1,11 @@
-export type Deck = { id: string; subject: string; name: string; createdAt: string }
-export type Card = {
+export type FlashcardDeck = {
+  id: string
+  name: string
+  subject: string
+  createdAt: string
+}
+
+export type Flashcard = {
   id: string
   deckId: string
   front: string

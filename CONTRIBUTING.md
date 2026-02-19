@@ -1,79 +1,250 @@
 # Contributing to Study Assistant AI
 
-Thank you for your interest in contributing to Study Assistant AI! We welcome pull requests, bug reports, and feature suggestions.
+Thanks for your interest in contributing to **Study Assistant AI**. We welcome thoughtful contributions that improve product quality, developer experience, performance, reliability, and security.
 
-## 1. Forking Process
+This guide explains how to contribute effectively and how to keep changes consistent with project standards.
 
-1. Fork the repository to your own GitHub account.
-2. Clone your fork locally.
-3. Add the upstream remote:
+---
+
+## Code of Conduct (Short Version)
+
+Be respectful, constructive, and collaborative.
+
+- Discuss ideas, not people.
+- Assume good intent, but prioritize user impact.
+- Keep communication professional in issues, PRs, and reviews.
+- Harassment, abuse, or hostile behavior is not tolerated.
+
+Maintainers may moderate threads and reject contributions that violate these expectations.
+
+---
+
+## Getting Started
+
+## 1) Prerequisites
+
+- **Node.js**: 18+ recommended
+- **npm**: current stable
+- **Git**: latest stable
+
+## 2) Fork & Clone
 
 ```bash
-git remote add upstream https://github.com/<original-owner>/study-assistant-ai.git
+git clone https://github.com/<your-username>/study-assistant-ai.git
+cd study-assistant-ai
 ```
 
-4. Sync before starting new work:
+## 3) Install Dependencies
 
 ```bash
-git fetch upstream
-git checkout main
-git merge upstream/main
+npm install
 ```
 
-## 2. Branch Naming
+## 4) Run Development Server
 
-Create focused branches from `main` using the following conventions:
+```bash
+npm run dev
+```
 
-- `feature/<short-description>`
-- `fix/<short-description>`
-- `docs/<short-description>`
-- `chore/<short-description>`
+## 5) Run Tests
+
+```bash
+npm run test
+```
+
+## 6) Lint and Build
+
+```bash
+npm run lint
+npm run build
+```
+
+If any check fails, fix locally before opening a pull request.
+
+---
+
+## Branch Naming Conventions
+
+Create focused branches from `main`.
+
+- `feature/<short-topic>`
+- `fix/<short-topic>`
+- `refactor/<short-topic>`
+- `docs/<short-topic>`
+- `chore/<short-topic>`
+- `test/<short-topic>`
 
 Examples:
 
-- `feature/ai-chat-memory`
-- `fix/planner-date-validation`
-- `docs/readme-improvements`
+- `feature/flashcard-stats-panel`
+- `fix/quiz-score-calculation`
+- `docs/security-policy-refresh`
 
-## 3. Commit Standards
+---
 
-Use clear, imperative commit messages. Conventional Commits are encouraged:
+## Commit Message Conventions
 
-- `feat: add notes tagging support`
-- `fix: resolve planner timezone bug`
-- `docs: update setup instructions`
-- `chore: refine lint config`
+Use **Conventional Commits** whenever possible:
 
-Tips:
+- `feat:` new user-facing capability
+- `fix:` bug fix
+- `refactor:` code restructuring without behavior change
+- `docs:` documentation-only changes
+- `test:` tests added/updated
+- `chore:` tooling/build/maintenance
 
-- Keep commits small and scoped.
-- Explain *why* in the body when context is needed.
-- Avoid mixing refactor, feature, and formatting-only changes in one commit.
+Examples:
 
-## 4. Pull Request Process
+- `feat: add quiz review summary panel`
+- `fix: handle empty citation result safely`
+- `docs: expand README architecture section`
 
-Before opening a PR:
+Keep commits atomic. One logical purpose per commit.
 
-1. Rebase or merge latest `main`.
-2. Run local checks (build/tests/lint) and ensure they pass.
-3. Update documentation for behavioral or configuration changes.
+---
 
-When opening a PR:
+## Pull Request Checklist
 
-- Use a descriptive title.
-- Include a clear summary of changes.
-- Link related issues (e.g., `Closes #12`).
-- Add screenshots/GIFs for UI changes when applicable.
-- Request review from maintainers.
+Before requesting review, confirm all items:
 
-## 5. Code Quality Expectations
+- [ ] Branch is up to date with `main`
+- [ ] Change scope is focused and clearly described
+- [ ] Lint, tests, and build pass locally
+- [ ] No secrets, API keys, or sensitive data committed
+- [ ] Docs updated when behavior/config changes
+- [ ] Screenshots added for meaningful UI changes (when possible)
+- [ ] PR description explains **what**, **why**, and **how tested**
 
-All contributions should:
+---
 
-- Follow existing code style and architecture patterns.
-- Use TypeScript types thoughtfully; avoid unnecessary `any`.
-- Keep components modular and reusable.
-- Include tests for new logic and regressions where practical.
-- Preserve accessibility and responsive design standards.
+## How to Add a New Feature Module
 
-By contributing, you agree that your submissions will be licensed under the MIT License.
+Use this repeatable workflow:
+
+1. **Define the feature boundary**
+   - Route/page scope
+   - State ownership
+   - Input/output types
+2. **Create typed models first** in `src/types/*`.
+3. **Implement core logic** in `src/lib/*` (pure functions where possible).
+4. **Add hook orchestration** in `src/hooks/*`.
+5. **Build modular UI** in `src/sections/<feature>/*`.
+6. **Wire route + navigation** in app shell/sidebar.
+7. **Add tests** for critical logic and user flow.
+8. **Update docs** (README or feature notes).
+
+Example pattern:
+
+- `src/types/quiz.ts`
+- `src/lib/quiz/generator.ts`
+- `src/hooks/useQuiz.ts`
+- `src/sections/quiz/QuizPage.tsx`
+
+---
+
+## UI Guidelines
+
+- Prefer shared components from `src/components/ui/*`.
+- Keep design consistent with existing Tailwind tokens and spacing scale.
+- Use shadcn-style primitives and composable section components.
+- Avoid ad-hoc styling drift; reuse utility classes and layout patterns.
+- Ensure accessibility basics:
+  - semantic HTML
+  - keyboard navigability
+  - readable focus states
+
+---
+
+## TypeScript Rules
+
+- Strict typing is expected.
+- Avoid `any` unless absolutely unavoidable and justified.
+- Model domain data in `src/types/*`.
+- Keep utility logic typed and deterministic.
+- Export clear function signatures and stable return types.
+
+If a type is uncertain, define it explicitly instead of inferring from fragile runtime assumptions.
+
+---
+
+## Testing Guidelines
+
+Use **Vitest + Testing Library**.
+
+Focus on:
+
+- Critical business logic (e.g., SM-2 scheduling, scoring)
+- High-value rendering behavior (navigation, key flows)
+- Regression cases for bug fixes
+
+Good tests are:
+
+- deterministic
+- fast
+- readable
+- scoped to behavior, not implementation trivia
+
+Suggested command:
+
+```bash
+npm run test -- --run
+```
+
+---
+
+## Issues: Bug Report vs Feature Request
+
+When opening an issue, choose the correct intent.
+
+### Bug report should include
+- What happened
+- Expected behavior
+- Reproduction steps
+- Environment details (OS/browser/node)
+- Relevant logs/screenshots
+
+### Feature request should include
+- Problem statement (who/why)
+- Proposed solution
+- Alternatives considered
+- UX impact and acceptance criteria
+
+Clear issues lead to faster implementation and fewer review cycles.
+
+---
+
+## Review Process Expectations
+
+Maintainers review for:
+
+- Product impact and user clarity
+- Architectural fit
+- Type safety and maintainability
+- Test quality
+- Security hygiene
+
+You may receive requested changes. Please treat review as collaborative quality improvement.
+
+PRs that are too large, unfocused, or missing validation may be deferred.
+
+---
+
+## Security Note (Important)
+
+Never expose secrets in commits, issues, or pull requests.
+
+- Do not commit `.env` files.
+- Do not post API keys in screenshots/logs.
+- Sanitize stack traces if they include sensitive content.
+- Use private reporting for vulnerabilities (see `SECURITY.md`).
+
+---
+
+## Final Tips for Fast Merges
+
+- Keep PRs small and single-purpose.
+- Include clear test evidence.
+- Update docs as part of the same PR.
+- Be responsive to review comments.
+
+Thanks for helping make **Study Assistant AI** sharper, safer, and more valuable for every learner.

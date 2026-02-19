@@ -1,19 +1,62 @@
-export type QuizQuestion = { id: string; type: 'mcq' | 'truefalse' | 'short'; prompt: string; options?: string[]; answer: string }
+import type { QuizQuestion } from '@/types/quiz'
 
-const words = (text: string) => text.toLowerCase().match(/[a-z]{4,}/g) ?? []
+function tokenize(input: string) {
+  return input.toLowerCase().match(/[a-z]{4,}/g) ?? []
+}
 
-export async function generateQuiz(content: string, providerKey?: string): Promise<QuizQuestion[]> {
-  if (providerKey) {
-    // Fallback mock AI payload for production-safe no-backend mode.
+function shuffle<T>(arr: T[]) {
+  const copy = [...arr]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
+export async function generateQuizQuestions(sourceText: string, aiKey?: string): Promise<QuizQuestion[]> {
+  const clean = sourceText.trim()
+  if (!clean) return []
+
+  // If AI key exists: keep a safe demo response (no backend wiring assumptions)
+  if (aiKey) {
     return [
-      { id: crypto.randomUUID(), type: 'short', prompt: `Summarize: ${content.slice(0, 60)}...`, answer: 'Open response' },
+      {
+        id: crypto.randomUUID(),
+        type: 'short',
+        prompt: `Summarize the core idea from: "${clean.slice(0, 120)}"...`,
+        answer: 'Open-ended answer',
+      },
     ]
   }
 
-  const uniq = [...new Set(words(content))].slice(0, 3)
-  return uniq.flatMap((word, index) => [
-    { id: `${index}-mcq`, type: 'mcq', prompt: `Which term appears in the source text?`, options: [word, 'random', 'noise', 'placeholder'], answer: word },
-    { id: `${index}-tf`, type: 'truefalse', prompt: `${word} is a study keyword in your text.`, answer: 'true' },
-    { id: `${index}-short`, type: 'short', prompt: `Define or explain: ${word}`, answer: 'Open response' },
-  ])
+  // Offline heuristic quiz generation (keywords)
+  const keywords = [...new Set(tokenize(clean))].slice(0, 4)
+  const distractorsBase = ['concept', 'method', 'result', 'example', 'system', 'theory', 'model', 'process']
+
+  return keywords.flatMap((keyword, index) => {
+    const distractors = distractorsBase.filter((w) => w !== keyword).slice(0, 3)
+    const choices = shuffle([keyword, ...distractors])
+
+    return [
+      {
+        id: `${index}-mcq`,
+        type: 'mcq',
+        prompt: 'Which term appears in your study text?',
+        choices,
+        answer: keyword,
+      },
+      {
+        id: `${index}-truefalse`,
+        type: 'true-false',
+        prompt: `"${keyword}" appears in your notes.`,
+        answer: 'true',
+      },
+      {
+        id: `${index}-short`,
+        type: 'short',
+        prompt: `Explain or define: "${keyword}"`,
+        answer: 'Open-ended answer',
+      },
+    ]
+  })
 }

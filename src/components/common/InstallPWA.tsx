@@ -1,19 +1,32 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+}
+
 export function InstallPWA() {
-  const [promptEvent, setPromptEvent] = useState<Event | null>(null)
+  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
     const handler = (event: Event) => {
       event.preventDefault()
-      setPromptEvent(event)
+      setInstallEvent(event as BeforeInstallPromptEvent)
     }
+
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
-  if (!promptEvent) return null
+  if (!installEvent) return null
 
-  return <Button onClick={() => void (promptEvent as { prompt: () => Promise<void> }).prompt()}>Install app</Button>
+  return (
+    <Button
+      onClick={() => {
+        void installEvent.prompt()
+      }}
+    >
+      Install App
+    </Button>
+  )
 }

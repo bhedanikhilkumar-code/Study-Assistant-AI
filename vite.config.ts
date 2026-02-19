@@ -8,8 +8,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      manifest: false,
-      injectManifest: undefined,
+      manifest: false, // using external manifest.webmanifest
+      includeAssets: [],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
       },

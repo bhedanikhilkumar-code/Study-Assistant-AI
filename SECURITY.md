@@ -1,36 +1,107 @@
 # Security Policy
 
-## Reporting Vulnerabilities
+Security is a core priority for **Study Assistant AI**. We appreciate responsible researchers and contributors who help keep this project safe.
 
-If you discover a security vulnerability, please report it privately and responsibly.
+---
 
-- **Do not** open a public GitHub issue for security concerns.
-- Share details via email with the maintainers, including:
-  - A clear description of the issue
-  - Reproduction steps or proof of concept
-  - Potential impact and affected components
-  - Suggested mitigation (if available)
+## Supported Versions
 
-## Responsible Disclosure
+We currently provide security fixes on a best-effort basis for:
 
-We follow responsible disclosure practices:
+- **Latest `main` branch**
+- **Most recent tagged release** (when releases are published)
 
-1. Report the issue privately to maintainers.
-2. Allow a reasonable remediation window before public disclosure.
-3. Coordinate on a disclosure timeline when a fix is available.
+Older snapshots may not receive patches.
 
-We will make a best effort to:
+---
 
-- Acknowledge receipt promptly
-- Investigate and validate reports
-- Provide status updates during remediation
-- Credit reporters when appropriate (with permission)
+## Reporting a Vulnerability
 
-## Contact Instructions
+Please report vulnerabilities **privately**.
 
-Please contact maintainers through one of the following channels:
+### Preferred channel
+- Email: `security@studyassistant.ai` (**example contact address for policy documentation**)
 
-- Security email: `security@studyassistantai.dev`
-- Backup contact: open a **private** security advisory in the repository's Security tab
+### Alternative channel
+- Use GitHub private security advisories (repository Security tab) when available.
 
-If the primary email is unavailable, use the private security advisory flow on GitHub.
+### Do not
+- Do **not** open public issues for unpatched vulnerabilities.
+- Do **not** post exploit details in public discussions before coordinated disclosure.
+
+---
+
+## What to Include in a Report
+
+A high-quality report helps us respond quickly. Include:
+
+1. A clear vulnerability summary
+2. Affected component(s) and file path(s)
+3. Reproduction steps (step-by-step)
+4. Proof of concept (minimal, safe where possible)
+5. Impact assessment (confidentiality/integrity/availability)
+6. Affected versions or commit range
+7. Suggested remediation (if available)
+
+If you are unsure about severity, report anyway.
+
+---
+
+## Response Timeline (Best Effort)
+
+We aim for the following targets:
+
+- **Acknowledgement:** within 72 hours
+- **Initial triage:** within 7 business days
+- **Status updates:** at reasonable intervals until resolution
+
+Complex issues may require more time, especially when they affect dependencies or broad architecture.
+
+---
+
+## Disclosure Policy
+
+We follow responsible disclosure:
+
+1. Reporter submits privately.
+2. Maintainers validate and triage.
+3. Fix is developed and tested.
+4. Disclosure is coordinated after patch availability.
+
+We may publicly credit reporters (with permission).
+
+---
+
+## Security Best Practices for Contributors
+
+When contributing code:
+
+- Never commit secrets (API keys, tokens, private credentials).
+- Keep dependencies updated and avoid abandoned packages.
+- Avoid unsafe patterns (`eval`, dynamic code execution, untrusted HTML injection).
+- Validate and sanitize external/user-provided input.
+- Prefer explicit typing and defensive checks for high-risk flows.
+
+---
+
+## Scope Notes
+
+Typical high-priority findings include:
+
+- Secret leakage risks
+- Injection vulnerabilities
+- Authentication/authorization bypass logic
+- Unsafe dependency exposure
+- Data import/export trust boundary issues
+
+Low-impact UI glitches or non-security bugs should go through regular issue templates.
+
+---
+
+## Contact
+
+Security contact for this policy:
+
+- `security@studyassistant.ai` *(example contact for repository policy)*
+
+If this address is not active in your deployment fork, configure your own private reporting mailbox and update this document accordingly.

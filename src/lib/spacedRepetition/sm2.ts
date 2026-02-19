@@ -1,26 +1,28 @@
-import type { Card } from '@/types/flashcards'
+import type { Flashcard } from '@/types/flashcards'
 
-export function applySM2(card: Card, quality: number): Card {
-  const q = Math.min(5, Math.max(0, quality))
-  const updated = { ...card }
+export function reviewWithSm2(card: Flashcard, quality: number, now = new Date()): Flashcard {
+  const q = Math.max(0, Math.min(5, quality))
+  const next: Flashcard = { ...card }
 
   if (q < 3) {
-    updated.repetitions = 0
-    updated.interval = 1
+    next.repetitions = 0
+    next.interval = 1
   } else {
-    updated.repetitions += 1
-    if (updated.repetitions === 1) updated.interval = 1
-    else if (updated.repetitions === 2) updated.interval = 6
-    else updated.interval = Math.round(updated.interval * updated.easeFactor)
+    next.repetitions += 1
+    if (next.repetitions === 1) next.interval = 1
+    else if (next.repetitions === 2) next.interval = 6
+    else next.interval = Math.max(1, Math.round(next.interval * next.easeFactor))
   }
 
-  updated.easeFactor = Math.max(1.3, updated.easeFactor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)))
-  const next = new Date()
-  next.setDate(next.getDate() + updated.interval)
-  updated.nextReviewDate = next.toISOString()
-  return updated
+  next.easeFactor = Math.max(1.3, next.easeFactor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)))
+
+  const reviewDate = new Date(now)
+  reviewDate.setDate(reviewDate.getDate() + next.interval)
+  next.nextReviewDate = reviewDate.toISOString()
+
+  return next
 }
 
-export function isDue(card: Card, now = new Date()) {
+export function isCardDue(card: Flashcard, now = new Date()) {
   return new Date(card.nextReviewDate) <= now
 }
